@@ -1,22 +1,13 @@
 package net.java.cargotracker.application;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Random;
-
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-
 import net.java.cargotracker.application.internal.DefaultBookingService;
 import net.java.cargotracker.application.util.DateUtil;
-import net.java.cargotracker.application.util.JsonMoxyConfigurationContextResolver;
 import net.java.cargotracker.domain.model.cargo.Cargo;
 import net.java.cargotracker.domain.model.cargo.CargoRepository;
 import net.java.cargotracker.domain.model.cargo.Delivery;
@@ -61,14 +52,15 @@ import net.java.pathfinder.api.GraphTraversalService;
 import net.java.pathfinder.api.TransitEdge;
 import net.java.pathfinder.api.TransitPath;
 import net.java.pathfinder.internal.GraphDao;
-
-import org.apache.commons.lang3.time.DateUtils;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.junit.InSequence;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -88,7 +80,7 @@ public class BookingServiceTest {
 
     private static TrackingId trackingId;
     private static List<Itinerary> candidates;
-    private static Date deadline;
+    private static LocalDate deadline;
     private static Itinerary assigned;
 
     @Deployment
@@ -139,7 +131,6 @@ public class BookingServiceTest {
                 .addClass(JpaHandlingEventRepository.class)
                 .addClass(JpaLocationRepository.class)
                 .addClass(ExternalRoutingService.class)
-                .addClass(JsonMoxyConfigurationContextResolver.class)
                 // Interface components
                 .addClass(TransitPath.class)
                 .addClass(TransitEdge.class)
@@ -164,8 +155,8 @@ public class BookingServiceTest {
 
         war.addAsLibraries(
                 Maven.resolver().loadPomFromFile("pom.xml")
-                .resolve("org.apache.commons:commons-lang3")
-                .withTransitivity().asFile());
+                        .resolve("org.apache.commons:commons-lang3")
+                        .withTransitivity().asFile());
 
         return war;
     }
@@ -176,11 +167,7 @@ public class BookingServiceTest {
         UnLocode fromUnlocode = new UnLocode("USCHI");
         UnLocode toUnlocode = new UnLocode("SESTO");
 
-        deadline = new Date();
-        GregorianCalendar calendar = new GregorianCalendar();
-        calendar.setTime(deadline);
-        calendar.add(Calendar.MONTH, 6); // Six months ahead.
-        deadline.setTime(calendar.getTime().getTime());
+        deadline = LocalDate.now().plusMonths(6);
 
         trackingId = bookingService.bookNewCargo(fromUnlocode, toUnlocode,
                 deadline);
@@ -192,8 +179,7 @@ public class BookingServiceTest {
         assertEquals(SampleLocations.CHICAGO, cargo.getOrigin());
         assertEquals(SampleLocations.STOCKHOLM, cargo.getRouteSpecification()
                 .getDestination());
-        assertTrue(DateUtils.isSameDay(deadline, cargo.getRouteSpecification()
-                .getArrivalDeadline()));
+        assertEquals(deadline, cargo.getRouteSpecification().getArrivalDeadline());
         assertEquals(TransportStatus.NOT_RECEIVED, cargo.getDelivery()
                 .getTransportStatus());
         assertEquals(Location.UNKNOWN, cargo.getDelivery()
@@ -238,7 +224,7 @@ public class BookingServiceTest {
         assertEquals(Voyage.NONE, cargo.getDelivery().getCurrentVoyage());
         assertFalse(cargo.getDelivery().isMisdirected());
         assertTrue(cargo.getDelivery().getEstimatedTimeOfArrival()
-                .before(deadline));
+                .isBefore(deadline));
         assertEquals(HandlingEvent.Type.RECEIVE, cargo.getDelivery()
                 .getNextExpectedActivity().getType());
         assertEquals(SampleLocations.CHICAGO, cargo.getDelivery()
@@ -262,8 +248,8 @@ public class BookingServiceTest {
         assertEquals(SampleLocations.CHICAGO, cargo.getOrigin());
         assertEquals(SampleLocations.HELSINKI, cargo.getRouteSpecification()
                 .getDestination());
-        assertTrue(DateUtils.isSameDay(deadline, cargo.getRouteSpecification()
-                .getArrivalDeadline()));
+        assertEquals(deadline, cargo.getRouteSpecification()
+                .getArrivalDeadline());
         assertEquals(assigned, cargo.getItinerary());
         assertEquals(TransportStatus.NOT_RECEIVED, cargo.getDelivery()
                 .getTransportStatus());
